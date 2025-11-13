@@ -85,6 +85,7 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+    console.log(req.body);
 
     console.log('🔐 Intento de login:', email);
 
