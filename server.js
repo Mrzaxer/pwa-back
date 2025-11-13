@@ -7,6 +7,8 @@ import mongoose from 'mongoose';
 import authRoutes from './routes/auth.js';
 import imageRoutes from './routes/images.js';
 import pushRoutes from './routes/push.js';
+import notificationRoutes from './routes/notifications.js';
+import postRoutes from './routes/posts.js'; // Nueva ruta para posts
 
 // Configurar variables de entorno
 dotenv.config();
@@ -25,12 +27,28 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/pwa_app')
   });
 
 // Middlewares
-app.use(cors());
-app.use(express.json());
-
-// Middleware de logging
+app.use(express.json({ limit: '10mb' })); // Aumentar límite para imágenes
+app.use(cors({
+  origin: [
+    'http://localhost:3000',
+    'https://pwa-front-iota.vercel.app/'
+  ],
+  credentials: true
+}));
+// Middleware de logging mejorado
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  const timestamp = new Date().toISOString();
+  console.log(`🌐 ${timestamp} - ${req.method} ${req.path} - IP: ${req.ip}`);
+  next();
+});
+
+// Middleware para medir performance
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`⏱️  ${req.method} ${req.path} - ${res.statusCode} - ${duration}ms`);
+  });
   next();
 });
 
@@ -38,58 +56,158 @@ app.use((req, res, next) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/images', imageRoutes);
 app.use('/api/push', pushRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/posts', postRoutes); // Nueva ruta para posts
 
-// Ruta de salud
+// Ruta de salud mejorada
 app.get('/api/health', (req, res) => {
-  res.json({
+  const healthCheck = {
     success: true,
     message: '🚀 Servidor backend funcionando correctamente',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
-    database: mongoose.connection.readyState === 1 ? 'Conectado' : 'Desconectado'
+    database: mongoose.connection.readyState === 1 ? 'Conectado' : 'Desconectado',
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+    version: '2.0.0'
+  };
+
+  // Verificar salud de la base de datos
+  mongoose.connection.db.admin().ping()
+    .then(() => {
+      healthCheck.databaseStatus = 'healthy';
+    })
+    .catch(() => {
+      healthCheck.databaseStatus = 'unhealthy';
+    });
+
+  res.json(healthCheck);
+});
+
+// Ruta de información del sistema
+app.get('/api/system-info', (req, res) => {
+  res.json({
+    success: true,
+    system: {
+      nodeVersion: process.version,
+      platform: process.platform,
+      arch: process.arch,
+      memory: process.memoryUsage(),
+      uptime: process.uptime()
+    },
+    environment: {
+      NODE_ENV: process.env.NODE_ENV || 'development',
+      database: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected'
+    },
+    features: {
+      notifications: true,
+      offlineSupport: true,
+      userMessaging: true,
+      backgroundSync: true
+    }
   });
 });
 
-// Ruta principal
+// Ruta principal actualizada
 app.get('/', (req, res) => {
   res.json({
-    message: 'Bienvenido al backend de la PWA',
-    version: '1.0.0',
+    message: 'Bienvenido al backend de la PWA - Full Stack',
+    version: '2.0.0',
+    description: 'Aplicación PWA completa con React, MongoDB, JWT y notificaciones push',
     endpoints: {
       auth: '/api/auth',
       images: '/api/images',
       push: '/api/push',
-      health: '/api/health'
-    }
+      notifications: '/api/notifications',
+      posts: '/api/posts',
+      health: '/api/health',
+      system: '/api/system-info'
+    },
+    features: [
+      '✅ Autenticación JWT',
+      '🔔 Notificaciones Push',
+      '📱 Funcionalidad Offline',
+      '👥 Notificaciones entre usuarios',
+      '💾 Almacenamiento local con IndexedDB',
+      '🔄 Background Sync',
+      '🎯 PWA completa'
+    ]
   });
 });
+
+// Middleware para manejar CORS pre-flight
+app.options('*', cors());
 
 // Manejo de rutas no encontradas
 app.use('*', (req, res) => {
   res.status(404).json({
     success: false,
-    error: 'Ruta no encontrada'
+    error: 'Ruta no encontrada',
+    requestedUrl: req.originalUrl,
+    availableEndpoints: [
+      '/api/auth',
+      '/api/images', 
+      '/api/push',
+      '/api/notifications',
+      '/api/posts',
+      '/api/health',
+      '/api/system-info'
+    ]
   });
 });
 
-// Manejo de errores global
+// Manejo de errores global mejorado
 app.use((error, req, res, next) => {
   console.error('❌ Error del servidor:', error);
-  res.status(500).json({
-    success: false,
-    error: 'Error interno del servidor'
+
+  // Log detallado del error
+  console.error('Stack trace:', error.stack);
+  console.error('Request details:', {
+    method: req.method,
+    url: req.url,
+    headers: req.headers,
+    body: req.body
   });
+
+  const errorResponse = {
+    success: false,
+    error: 'Error interno del servidor',
+    timestamp: new Date().toISOString()
+  };
+
+  // En desarrollo, incluir más detalles del error
+  if (process.env.NODE_ENV === 'development') {
+    errorResponse.details = error.message;
+    errorResponse.stack = error.stack;
+  }
+
+  res.status(500).json(errorResponse);
+});
+
+// Manejar cierre graceful
+process.on('SIGINT', () => {
+  console.log('🛑 Recibido SIGINT. Cerrando servidor...');
+  mongoose.connection.close();
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  console.log('🛑 Recibido SIGTERM. Cerrando servidor...');
+  mongoose.connection.close();
+  process.exit(0);
 });
 
 // Iniciar servidor
 app.listen(PORT, () => {
   console.log('=====================================');
-  console.log(' Servidor backend iniciado');
-  console.log(` URL: http://localhost:${PORT}`);
-  console.log(' MONGODB_URI:', process.env.MONGODB_URI ? 'Cargada' : '❌ No cargada');
-  console.log(` Notificaciones push: CONFIGURADAS`);
-  console.log(` VAPID Key: ${process.env.VAPID_PUBLIC_KEY?.substring(0, 20)}...`);
-  console.log(` JWT Auth: HABILITADO`);
+  console.log(' 🚀 Servidor backend FULL STACK iniciado');
+  console.log(` 📍 URL: http://localhost:${PORT}`);
+  console.log(' ⚙️  Entorno:', process.env.NODE_ENV || 'development');
+  console.log(' 🗄️  MongoDB:', process.env.MONGODB_URI ? '✅ Conectado' : '❌ No configurado');
+  console.log(' 🔔 Notificaciones push: ✅ CONFIGURADAS');
+  console.log(' 👥 Notificaciones entre usuarios: ✅ ACTIVAS');
+  console.log(' 💾 Endpoint de posts: ✅ DISPONIBLE');
+  console.log(` 🔑 VAPID Key: ${process.env.VAPID_PUBLIC_KEY?.substring(0, 20)}...`);
   console.log('=====================================');
 });
 
