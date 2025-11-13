@@ -121,6 +121,39 @@ router.delete('/subscription', authenticateToken, async (req, res) => {
       error: error.message 
     });
   }
+  // O si prefieres una versión más simple:
+router.post('/test', authenticateToken, async (req, res) => {
+  try {
+    const { title, message } = req.body;
+    
+    const notificationData = {
+      title: title || 'Notificación de Prueba',
+      body: message || 'Esta es una notificación push de prueba',
+      icon: '/icons/icon-192x192.png',
+      data: { url: '/dashboard' },
+      tag: 'test'
+    };
+
+    const results = await pushService.sendNotificationToAll(
+      notificationData.title,
+      notificationData
+    );
+
+    res.json({
+      success: true,
+      message: `Notificación enviada exitosamente`,
+      sent: results.sent,
+      failed: results.failed,
+      total: results.total
+    });
+    
+  } catch (error) {
+    res.status(500).json({ 
+      success: false,
+      error: error.message 
+    });
+  }
+});
 });
 
 export default router;
