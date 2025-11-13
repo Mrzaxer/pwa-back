@@ -154,6 +154,17 @@ router.post('/test', authenticateToken, async (req, res) => {
     });
   }
 });
+
+router.post('/unsubscribe', authenticateToken, async (req, res) => {
+  const { subscription } = req.body;
+  if (!subscription?.endpoint) {
+    return res.status(400).json({ success: false, error: 'Subscription es requerida' });
+  }
+  const result = await pushService.removeSubscription(req.user._id, subscription.endpoint);
+  res.json(result);
+});
+
+
 });
 
 export default router;
