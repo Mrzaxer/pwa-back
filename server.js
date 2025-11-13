@@ -31,7 +31,7 @@ app.use(express.json({ limit: '10mb' })); // Aumentar límite para imágenes
 app.use(cors({
   origin: [
     'http://localhost:3000',
-    'https://pwa-back-xmqw.onrender.com'
+    'https://pwa-front-1rdi.vercel.ap'
   ],
   credentials: true
 }));
