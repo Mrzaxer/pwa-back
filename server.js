@@ -9,6 +9,7 @@ import imageRoutes from './routes/images.js';
 import pushRoutes from './routes/push.js';
 import notificationRoutes from './routes/notifications.js';
 import postRoutes from './routes/posts.js'; // Nueva ruta para posts
+import userRoutes from './routes/users.js';
 
 // Configurar variables de entorno
 dotenv.config();
@@ -58,7 +59,7 @@ app.use('/api/images', imageRoutes);
 app.use('/api/push', pushRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/posts', postRoutes); // Nueva ruta para posts
-app.use('/api/users', import('./routes/users.js').then(module => module.default)); // Ruta de usuarios
+app.use('/api/users', userRoutes);
 
 // Ruta de salud mejorada
 app.get('/api/health', (req, res) => {
