@@ -9,6 +9,14 @@ router.get('/email/:email', authenticateToken, async (req, res) => {
   try {
     const { email } = req.params;
     
+    // Validar que el email venga en el parámetro
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email es requerido'
+      });
+    }
+
     const user = await User.findOne({ 
       email: email.toLowerCase(),
       isActive: true 
@@ -31,9 +39,10 @@ router.get('/email/:email', authenticateToken, async (req, res) => {
       }
     });
   } catch (error) {
+    console.error('❌ Error buscando usuario por email:', error);
     res.status(500).json({
       success: false,
-      error: error.message
+      error: 'Error interno del servidor'
     });
   }
 });
@@ -50,8 +59,16 @@ router.post('/emails', authenticateToken, async (req, res) => {
       });
     }
 
+    // Validar que haya al menos un email
+    if (emails.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Se requiere al menos un email'
+      });
+    }
+
     const users = await User.find({
-      email: { $in: emails.map(email => email.toLowerCase()) },
+      email: { $in: emails.map(email => email.toLowerCase().trim()) },
       isActive: true
     }).select('-password -pushSubscriptions');
 
@@ -64,12 +81,16 @@ router.post('/emails', authenticateToken, async (req, res) => {
         role: user.role
       })),
       found: users.length,
-      total: emails.length
+      total: emails.length,
+      notFound: emails.filter(email => 
+        !users.some(user => user.email === email.toLowerCase().trim())
+      )
     });
   } catch (error) {
+    console.error('❌ Error buscando usuarios por emails:', error);
     res.status(500).json({
       success: false,
-      error: error.message
+      error: 'Error interno del servidor'
     });
   }
 });

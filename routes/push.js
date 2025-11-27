@@ -19,6 +19,7 @@ router.post('/subscribe', authenticateToken, async (req, res) => {
     const result = await pushService.saveSubscription(req.user._id, subscription);
     res.json(result);
   } catch (error) {
+    console.error('❌ Error en suscripción push:', error);
     res.status(500).json({ 
       success: false,
       error: error.message 
@@ -48,6 +49,7 @@ router.post('/send', authenticateToken, async (req, res) => {
 
     res.json(results);
   } catch (error) {
+    console.error('❌ Error enviando notificación a todos:', error);
     res.status(500).json({ 
       success: false,
       error: error.message 
@@ -68,6 +70,13 @@ router.post('/send-to-user/:userId', authenticateToken, async (req, res) => {
       });
     }
 
+    if (!userId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'User ID es requerido' 
+      });
+    }
+
     const results = await pushService.sendNotificationToUser(userId, title, {
       body: message,
       icon: icon || '/icons/icon-192x192.png',
@@ -78,6 +87,7 @@ router.post('/send-to-user/:userId', authenticateToken, async (req, res) => {
 
     res.json(results);
   } catch (error) {
+    console.error('❌ Error enviando notificación a usuario:', error);
     res.status(500).json({ 
       success: false,
       error: error.message 
@@ -107,22 +117,7 @@ router.post('/send-to-users', authenticateToken, async (req, res) => {
 
     res.json(results);
   } catch (error) {
-    res.status(500).json({ 
-      success: false,
-      error: error.message 
-    });
-  }
-});
-
-// Obtener estadísticas de notificaciones
-router.get('/stats', authenticateToken, async (req, res) => {
-  try {
-    const stats = await pushService.getStats();
-    res.json({
-      success: true,
-      ...stats
-    });
-  } catch (error) {
+    console.error('❌ Error enviando notificación a usuarios:', error);
     res.status(500).json({ 
       success: false,
       error: error.message 
@@ -152,6 +147,7 @@ router.post('/send-to-email', authenticateToken, async (req, res) => {
 
     res.json(results);
   } catch (error) {
+    console.error('❌ Error enviando notificación por email:', error);
     res.status(500).json({ 
       success: false,
       error: error.message 
@@ -181,12 +177,31 @@ router.post('/send-to-emails', authenticateToken, async (req, res) => {
 
     res.json(results);
   } catch (error) {
+    console.error('❌ Error enviando notificación a emails:', error);
     res.status(500).json({ 
       success: false,
       error: error.message 
     });
   }
 });
+
+// Obtener estadísticas de notificaciones
+router.get('/stats', authenticateToken, async (req, res) => {
+  try {
+    const stats = await pushService.getStats();
+    res.json({
+      success: true,
+      ...stats
+    });
+  } catch (error) {
+    console.error('❌ Error obteniendo estadísticas:', error);
+    res.status(500).json({ 
+      success: false,
+      error: error.message 
+    });
+  }
+});
+
 // Eliminar suscripción del usuario actual
 router.delete('/subscription', authenticateToken, async (req, res) => {
   try {
@@ -202,6 +217,7 @@ router.delete('/subscription', authenticateToken, async (req, res) => {
     const result = await pushService.removeSubscription(req.user._id, endpoint);
     res.json(result);
   } catch (error) {
+    console.error('❌ Error eliminando suscripción:', error);
     res.status(500).json({ 
       success: false,
       error: error.message 

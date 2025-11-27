@@ -8,7 +8,7 @@ import authRoutes from './routes/auth.js';
 import imageRoutes from './routes/images.js';
 import pushRoutes from './routes/push.js';
 import notificationRoutes from './routes/notifications.js';
-import postRoutes from './routes/posts.js'; // Nueva ruta para posts
+import postRoutes from './routes/posts.js';
 import userRoutes from './routes/users.js';
 
 // Configurar variables de entorno
@@ -18,24 +18,32 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Conectar a MongoDB
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/pwa_app')
-  .then(() => {
+const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/pwa_app', {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
     console.log('✅ Conectado a MongoDB');
-  })
-  .catch((error) => {
+  } catch (error) {
     console.error('❌ Error conectando a MongoDB:', error);
     process.exit(1);
-  });
+  }
+};
+
+connectDB();
 
 // Middlewares
-app.use(express.json({ limit: '10mb' })); // Aumentar límite para imágenes
+app.use(express.json({ limit: '10mb' }));
 app.use(cors({
   origin: [
     'http://localhost:3000',
+    'http://localhost:5173',
     'https://frontendxdxd.vercel.app'
   ],
   credentials: true
 }));
+
 // Middleware de logging mejorado
 app.use((req, res, next) => {
   const timestamp = new Date().toISOString();
@@ -58,11 +66,11 @@ app.use('/api/auth', authRoutes);
 app.use('/api/images', imageRoutes);
 app.use('/api/push', pushRoutes);
 app.use('/api/notifications', notificationRoutes);
-app.use('/api/posts', postRoutes); // Nueva ruta para posts
+app.use('/api/posts', postRoutes);
 app.use('/api/users', userRoutes);
 
 // Ruta de salud mejorada
-app.get('/api/health', (req, res) => {
+app.get('/api/health', async (req, res) => {
   const healthCheck = {
     success: true,
     message: '🚀 Servidor backend funcionando correctamente',
@@ -75,13 +83,13 @@ app.get('/api/health', (req, res) => {
   };
 
   // Verificar salud de la base de datos
-  mongoose.connection.db.admin().ping()
-    .then(() => {
-      healthCheck.databaseStatus = 'healthy';
-    })
-    .catch(() => {
-      healthCheck.databaseStatus = 'unhealthy';
-    });
+  try {
+    await mongoose.connection.db.admin().ping();
+    healthCheck.databaseStatus = 'healthy';
+  } catch (error) {
+    healthCheck.databaseStatus = 'unhealthy';
+    healthCheck.databaseError = error.message;
+  }
 
   res.json(healthCheck);
 });
@@ -122,6 +130,7 @@ app.get('/', (req, res) => {
       push: '/api/push',
       notifications: '/api/notifications',
       posts: '/api/posts',
+      users: '/api/users',
       health: '/api/health',
       system: '/api/system-info'
     },
@@ -152,6 +161,7 @@ app.use('*', (req, res) => {
       '/api/push',
       '/api/notifications',
       '/api/posts',
+      '/api/users',
       '/api/health',
       '/api/system-info'
     ]
@@ -161,15 +171,6 @@ app.use('*', (req, res) => {
 // Manejo de errores global mejorado
 app.use((error, req, res, next) => {
   console.error('❌ Error del servidor:', error);
-
-  // Log detallado del error
-  console.error('Stack trace:', error.stack);
-  console.error('Request details:', {
-    method: req.method,
-    url: req.url,
-    headers: req.headers,
-    body: req.body
-  });
 
   const errorResponse = {
     success: false,
@@ -187,15 +188,15 @@ app.use((error, req, res, next) => {
 });
 
 // Manejar cierre graceful
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
   console.log('🛑 Recibido SIGINT. Cerrando servidor...');
-  mongoose.connection.close();
+  await mongoose.connection.close();
   process.exit(0);
 });
 
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   console.log('🛑 Recibido SIGTERM. Cerrando servidor...');
-  mongoose.connection.close();
+  await mongoose.connection.close();
   process.exit(0);
 });
 
@@ -209,6 +210,7 @@ app.listen(PORT, () => {
   console.log(' 🔔 Notificaciones push: ✅ CONFIGURADAS');
   console.log(' 👥 Notificaciones entre usuarios: ✅ ACTIVAS');
   console.log(' 💾 Endpoint de posts: ✅ DISPONIBLE');
+  console.log(' 👤 Endpoint de usuarios: ✅ DISPONIBLE');
   console.log(` 🔑 VAPID Key: ${process.env.VAPID_PUBLIC_KEY?.substring(0, 20)}...`);
   console.log('=====================================');
 });
