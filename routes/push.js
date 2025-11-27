@@ -130,6 +130,63 @@ router.get('/stats', authenticateToken, async (req, res) => {
   }
 });
 
+// Enviar notificación a usuario por email
+router.post('/send-to-email', authenticateToken, async (req, res) => {
+  try {
+    const { email, title, message, icon, url, image, tag } = req.body;
+    
+    if (!title || !email) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Title y email son requeridos' 
+      });
+    }
+
+    const results = await pushService.sendNotificationToUserByEmail(email, title, {
+      body: message,
+      icon: icon || '/icons/icon-192x192.png',
+      image: image,
+      data: { url: url || '/' },
+      tag: tag || 'general'
+    });
+
+    res.json(results);
+  } catch (error) {
+    res.status(500).json({ 
+      success: false,
+      error: error.message 
+    });
+  }
+});
+
+// Enviar notificación a múltiples usuarios por emails
+router.post('/send-to-emails', authenticateToken, async (req, res) => {
+  try {
+    const { emails, title, message, icon, url, image, tag } = req.body;
+    
+    if (!title || !emails || !Array.isArray(emails)) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Title y emails (array) son requeridos' 
+      });
+    }
+
+    const results = await pushService.sendNotificationToUsersByEmails(emails, title, {
+      body: message,
+      icon: icon || '/icons/icon-192x192.png',
+      image: image,
+      data: { url: url || '/' },
+      tag: tag || 'general'
+    });
+
+    res.json(results);
+  } catch (error) {
+    res.status(500).json({ 
+      success: false,
+      error: error.message 
+    });
+  }
+});
 // Eliminar suscripción del usuario actual
 router.delete('/subscription', authenticateToken, async (req, res) => {
   try {

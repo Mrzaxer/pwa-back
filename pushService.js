@@ -231,6 +231,46 @@ class PushService {
     }
   }
 
+  // Enviar notificación a usuario por email
+async sendNotificationToUserByEmail(userEmail, title, options = {}) {
+  try {
+    // Buscar usuario por email
+    const user = await User.findOne({ 
+      email: userEmail.toLowerCase(),
+      isActive: true 
+    }).populate('pushSubscriptions');
+    
+    if (!user) {
+      throw new Error(`Usuario con email ${userEmail} no encontrado`);
+    }
+
+    return await this.sendNotificationToUser(user._id, title, options);
+  } catch (error) {
+    console.error('❌ Error enviando notificación por email:', error);
+    throw error;
+  }
+}
+
+// Enviar notificación a múltiples usuarios por emails
+async sendNotificationToUsersByEmails(userEmails, title, options = {}) {
+  try {
+    const users = await User.find({ 
+      email: { $in: userEmails.map(email => email.toLowerCase()) },
+      isActive: true 
+    }).populate('pushSubscriptions');
+
+    if (users.length === 0) {
+      throw new Error('No se encontraron usuarios con los emails proporcionados');
+    }
+
+    const userIds = users.map(user => user._id);
+    return await this.sendNotificationToUsers(userIds, title, options);
+  } catch (error) {
+    console.error('❌ Error enviando notificaciones por emails:', error);
+    throw error;
+  }
+}
+
   // Obtener estadísticas
   async getStats() {
     try {
