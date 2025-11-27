@@ -126,6 +126,67 @@ class PushService {
     }
   }
 
+  // Enviar notificación a múltiples usuarios específicos
+  async sendNotificationToUsers(userIds, title, options = {}) {
+    try {
+      const users = await User.find({ 
+        _id: { $in: userIds },
+        isActive: true 
+      }).populate('pushSubscriptions');
+
+      let totalSent = 0;
+      let totalFailed = 0;
+      const results = [];
+
+      console.log(`📤 Enviando notificación a ${users.length} usuarios específicos:`, title);
+
+      for (const user of users) {
+        let userSent = 0;
+        let userFailed = 0;
+
+        if (user.pushSubscriptions && user.pushSubscriptions.length > 0) {
+          for (const subscription of user.pushSubscriptions) {
+            try {
+              await this.sendNotification(subscription, title, options);
+              userSent++;
+              totalSent++;
+            } catch (error) {
+              userFailed++;
+              totalFailed++;
+              console.error(`❌ Error enviando a ${user.username}:`, error.message);
+              
+              if (error.statusCode === 410) {
+                await user.removePushSubscription(subscription.endpoint);
+              }
+            }
+          }
+        }
+
+        results.push({
+          userId: user._id,
+          username: user.username,
+          sent: userSent,
+          failed: userFailed,
+          totalSubscriptions: user.pushSubscriptions?.length || 0
+        });
+      }
+
+      console.log(`✅ Notificaciones enviadas a usuarios específicos: ${totalSent} exitosas, ${totalFailed} fallidas`);
+      return {
+        success: true,
+        message: `Notificaciones enviadas: ${totalSent} exitosas, ${totalFailed} fallidas`,
+        results: {
+          totalSent,
+          totalFailed,
+          userResults: results
+        }
+      };
+    } catch (error) {
+      console.error('❌ Error enviando notificaciones a usuarios específicos:', error);
+      throw error;
+    }
+  }
+
   // Enviar notificación individual
   async sendNotification(subscription, title, options = {}) {
     const payload = JSON.stringify({

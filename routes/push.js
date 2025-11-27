@@ -85,6 +85,35 @@ router.post('/send-to-user/:userId', authenticateToken, async (req, res) => {
   }
 });
 
+// Enviar notificación a múltiples usuarios
+router.post('/send-to-users', authenticateToken, async (req, res) => {
+  try {
+    const { userIds, title, message, icon, url, image, tag } = req.body;
+    
+    if (!title || !userIds || !Array.isArray(userIds)) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Title y userIds (array) son requeridos' 
+      });
+    }
+
+    const results = await pushService.sendNotificationToUsers(userIds, title, {
+      body: message,
+      icon: icon || '/icons/icon-192x192.png',
+      image: image,
+      data: { url: url || '/' },
+      tag: tag || 'general'
+    });
+
+    res.json(results);
+  } catch (error) {
+    res.status(500).json({ 
+      success: false,
+      error: error.message 
+    });
+  }
+});
+
 // Obtener estadísticas de notificaciones
 router.get('/stats', authenticateToken, async (req, res) => {
   try {
@@ -121,50 +150,6 @@ router.delete('/subscription', authenticateToken, async (req, res) => {
       error: error.message 
     });
   }
-  // O si prefieres una versión más simple:
-router.post('/test', authenticateToken, async (req, res) => {
-  try {
-    const { title, message } = req.body;
-    
-    const notificationData = {
-      title: title || 'Notificación de Prueba',
-      body: message || 'Esta es una notificación push de prueba',
-      icon: '/icons/icon-192x192.png',
-      data: { url: '/dashboard' },
-      tag: 'test'
-    };
-
-    const results = await pushService.sendNotificationToAll(
-      notificationData.title,
-      notificationData
-    );
-
-    res.json({
-      success: true,
-      message: `Notificación enviada exitosamente`,
-      sent: results.sent,
-      failed: results.failed,
-      total: results.total
-    });
-    
-  } catch (error) {
-    res.status(500).json({ 
-      success: false,
-      error: error.message 
-    });
-  }
-});
-
-router.post('/unsubscribe', authenticateToken, async (req, res) => {
-  const { subscription } = req.body;
-  if (!subscription?.endpoint) {
-    return res.status(400).json({ success: false, error: 'Subscription es requerida' });
-  }
-  const result = await pushService.removeSubscription(req.user._id, subscription.endpoint);
-  res.json(result);
-});
-
-
 });
 
 export default router;
