@@ -9,7 +9,6 @@ router.get('/email/:email', authenticateToken, async (req, res) => {
   try {
     const { email } = req.params;
     
-    // Validar que el email venga en el parámetro
     if (!email) {
       return res.status(400).json({
         success: false,
